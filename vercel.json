@@ -1,6 +1,6 @@
 {
   "functions": {
-    "api/index.js": {
+    "index.js": {
       "runtime": "@vercel/edge@1.2.0"
     }
   },
