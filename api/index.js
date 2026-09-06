@@ -595,7 +595,7 @@ export default async function (request) {
   const BAIDU_API_KEY = process.env.BAIDU_API_KEY || "";
   const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || "";
 
-  const url = new URL(request.url);
+  const url = new URL("/");
   const path = url.pathname;
   const clientIP = request.headers.get("x-forwarded-for")?.split(",")?.[0]?.trim() || request.headers.get("cf-connecting-ip") || "unknown";
 
