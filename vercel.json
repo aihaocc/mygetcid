@@ -1,7 +1,5 @@
 {
-  "functions": {
-    "index.js": {
-      "runtime": "nodejs@20"
-    }
-  }
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.js" }
+  ]
 }
