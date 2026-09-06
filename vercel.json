@@ -1,10 +1,10 @@
 {
   "functions": {
-    "index.js": {
+    "api/index.js": {
       "runtime": "@vercel/edge@1.2.0"
     }
   },
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.js" }
+    { "source": "/(.*)", "destination": "/api/index.js" }
   ]
 }
