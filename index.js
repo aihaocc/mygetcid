@@ -242,7 +242,10 @@ function toolPage() { /* ... 原代码不变 ... */ }
 
 // ==================== Vercel Serverless 入口 ====================
 export default async function handler(request) {
-  const url = new URL(request.url);
+  // 兼容 Vercel rewrite 导致的相对路径
+  const baseUrl = `https://${request.headers.get('host') || 'localhost'}`;
+  const url = new URL(request.url, baseUrl);
+  
   const path = url.pathname;
   const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
