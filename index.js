@@ -14,8 +14,8 @@ const KEY_BAIDU_TOKEN = "baidu_ocr_token";
 const KEY_CID_TOKEN = "cid_token_data";
 
 // ==================== 辅助函数 ====================
-function isAuth(req, pwd) {
-  const cookie = req.headers.get("cookie") || "";
+function isAuth(request, pwd) {
+  const cookie = request.headers.get("cookie") || "";
   return cookie.split(";").some(c => c.trim() === "log_token=" + pwd);
 }
 
@@ -106,7 +106,7 @@ async function getBaiduToken(apiKey, secretKey) {
 }
 
 // ==================== 激活请求 ====================
-async function sendActivationRequest(IID) {
+async function sendActivationrequestuest(IID) {
   if (!IID) throw new Error("missing IID");
   const dpop = await c1("/api/productActivation/validateIID", "POST");
   const sid = GenerateSessionId();
@@ -241,13 +241,13 @@ function toolPage() { /* ... 原代码不变 ... */ }
 
 
 // ==================== Vercel Serverless 入口 ====================
-export default async function handler(request) {
+export default async function handler(requestuest) {
   // 兼容 Vercel rewrite 导致的相对路径
-  const baseUrl = `https://${request.headers.get('host') || 'localhost'}`;
-  const url = new URL(request.url, baseUrl);
+  const baseUrl = `https://${requestuest.headers.get('host') || 'localhost'}`;
+  const url = new URL(requestuest.url, baseUrl);
   
   const path = url.pathname;
-  const clientIP = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const clientIP = requestuest.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 
   // ---------- 黑名单拦截 ----------
   if (await isBlocked(clientIP)) {
@@ -256,14 +256,14 @@ export default async function handler(request) {
 
   // ---------- 黑名单管理 API ----------
   if (path === "/logs/block-ip") {
-    if (!isAuth(request, LOG_PASSWORD)) return new Response("403", { status: 403 });
-    const ip = await request.text();
+    if (!isAuth(requestuest, LOG_PASSWORD)) return new Response("403", { status: 403 });
+    const ip = await requestuest.text();
     await blockIp(ip);
     return new Response("ok");
   }
   if (path === "/logs/unblock-ip") {
-    if (!isAuth(request, LOG_PASSWORD)) return new Response("403", { status: 403 });
-    const ip = await request.text();
+    if (!isAuth(requestuest, LOG_PASSWORD)) return new Response("403", { status: 403 });
+    const ip = await requestuest.text();
     await unblockIp(ip);
     return new Response("ok");
   }
@@ -272,10 +272,10 @@ export default async function handler(request) {
   if (path === "/api/get-cid" || path === "/api/get-cid/") {
     try {
       let IID = null;
-      if (request.method === "GET") {
+      if (requestuest.method === "GET") {
         IID = url.searchParams.get("IID");
-      } else if (request.method === "POST") {
-        const body = await request.json();
+      } else if (requestuest.method === "POST") {
+        const body = await requestuest.json();
         IID = body.IID;
       } else {
         return Response.json({ error: "Method not allowed" }, { status: 405 });
@@ -284,33 +284,33 @@ export default async function handler(request) {
       const check = validateIID(IID);
       if (!check.valid) return Response.json({ error: "invalid IID", validate: check }, { status: 400 });
 
-      const result = await sendActivationRequest(IID);
+      const result = await sendActivationrequestuest(IID);
       await addLog({ id: crypto.randomUUID(), time: getFormatTime(TIMEZONE), IID, ip: clientIP, result });
 
       const response = Response.json(result);
-      if (request.method === "GET") response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+      if (requestuest.method === "GET") response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
       return response;
     } catch (err) {
-      return Response.json({ error: "request failed", detail: err.message }, { status: 500 });
+      return Response.json({ error: "requestuest failed", detail: err.message }, { status: 500 });
     }
   }
 
   // ---------- 日志管理 ----------
   if (path === "/logs/clear") {
-    if (!isAuth(request, LOG_PASSWORD)) return new Response("403", { status: 403 });
+    if (!isAuth(requestuest, LOG_PASSWORD)) return new Response("403", { status: 403 });
     await clearAllLogs();
     return Response.redirect("/logs", 302);
   }
   if (path === "/logs/delete") {
-    if (!isAuth(request, LOG_PASSWORD)) return new Response("403", { status: 403 });
-    const id = await request.text();
+    if (!isAuth(requestuest, LOG_PASSWORD)) return new Response("403", { status: 403 });
+    const id = await requestuest.text();
     await deleteLogById(id);
     return new Response("ok");
   }
   if (path === "/logs") {
     if (!LOG_PASSWORD) return new Response("请设置 LOG_PASSWORD 环境变量", { headers: { "Content-Type": "text/html; charset=utf-8" } });
-    if (request.method === "POST") {
-      const form = await request.formData();
+    if (requestuest.method === "POST") {
+      const form = await requestuest.formData();
       if (form.get("pwd") === LOG_PASSWORD) {
         return new Response(null, {
           status: 302,
@@ -318,7 +318,7 @@ export default async function handler(request) {
         });
       }
     }
-    if (!isAuth(request, LOG_PASSWORD)) return new Response(loginPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
+    if (!isAuth(requestuest, LOG_PASSWORD)) return new Response(loginPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
 
     const search = url.searchParams.get("search") || "";
     const page = parseInt(url.searchParams.get("page")) || 1;
@@ -329,9 +329,9 @@ export default async function handler(request) {
   }
 
   // ---------- OCR 接口 ----------
-  if (path === "/api/ocr-iid" && request.method === "POST") {
+  if (path === "/api/ocr-iid" && requestuest.method === "POST") {
     try {
-      const form = await request.formData();
+      const form = await requestuest.formData();
       const img = form.get("image");
       if (!img) return Response.json({ error: "missing image" });
       const base64 = bufferToBase64(await img.arrayBuffer());
@@ -342,16 +342,16 @@ export default async function handler(request) {
       const iid = iids[0];
       const check = validateIID(iid);
       if (!check.valid) return Response.json({ error: "invalid IID", validate: check }, { status: 400 });
-      const result = await sendActivationRequest(iid);
+      const result = await sendActivationrequestuest(iid);
       await addLog({ id: crypto.randomUUID(), time: getFormatTime(TIMEZONE), IID: iid, ip: clientIP, result });
       return Response.json(result);
     } catch (err) {
       return Response.json({ error: "ocr failed", detail: err + "" });
     }
   }
-  if (path === "/api/ocr-only" && request.method === "POST") {
+  if (path === "/api/ocr-only" && requestuest.method === "POST") {
     try {
-      const form = await request.formData();
+      const form = await requestuest.formData();
       const img = form.get("image");
       const base64 = bufferToBase64(await img.arrayBuffer());
       const ocr = await baiduOCR(`data:image/png;base64,${base64}`, BAIDU_API_KEY, BAIDU_SECRET_KEY);
@@ -363,17 +363,17 @@ export default async function handler(request) {
   }
 
   // ---------- GET 工具页 / POST 根路由激活 ----------
-  if (request.method === "GET") {
+  if (requestuest.method === "GET") {
     return new Response(toolPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
   }
 
   try {
-    const body = await request.json();
+    const body = await requestuest.json();
     const IID = body.IID;
     if (!IID) return Response.json({ error: "missing IID" }, { status: 400 });
     const check = validateIID(IID);
     if (!check.valid) return Response.json({ error: "invalid IID", validate: check }, { status: 400 });
-    const result = await sendActivationRequest(IID);
+    const result = await sendActivationrequestuest(IID);
     await addLog({ id: crypto.randomUUID(), time: getFormatTime(TIMEZONE), IID, ip: clientIP, result });
     return Response.json(result);
   } catch (err) {
