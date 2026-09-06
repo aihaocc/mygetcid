@@ -1,4 +1,7 @@
 {
+  "dependencies": {
+    "@vercel/kv": "^2.0.0"
+  },
   "type": "module",
   "engines": {
     "node": "24.x"
