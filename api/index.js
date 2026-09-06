@@ -1,4 +1,5 @@
-import { kv } from '@vercel/kv';
+// import { kv } from '@vercel/kv';
+const kv = null; // 禁用 KV，使用内存模式
 
 // ========== 配置常量 ==========
 const KV_BATCH_PREFIX = "batch_";
