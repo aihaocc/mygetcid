@@ -1,7 +1,7 @@
 // api/index.js
 const LOG_PASSWORD = process.env.LOG_PASSWORD || "admin123";
 
-// ========== 工具函数 ==========
+// ========== 工具函数 ========== 
 function isAuth(request, password) {
   const cookie = request.headers.get("cookie") || "";
   return cookie.includes(`log_session=${password}`);
