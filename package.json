@@ -1,5 +1,5 @@
 {
-  "engines": {
-    "node": ">=18.x"
+  "dependencies": {
+    "@vercel/kv": "^2.0.0"
   }
 }
