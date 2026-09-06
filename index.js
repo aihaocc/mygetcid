@@ -595,7 +595,12 @@ export default async function (request) {
   const BAIDU_API_KEY = process.env.BAIDU_API_KEY || "";
   const BAIDU_SECRET_KEY = process.env.BAIDU_SECRET_KEY || "";
 
-  const url = new URL("/");
+console.log('DEBUG req.url:', req.url, 'host:', req.headers?.host);
+
+// 替换原来的 new URL() 为：
+const base = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host || 'localhost'}`;
+const url = new URL(req.url || '/', base);
+  
   const path = url.pathname;
   const clientIP = request.headers.get("x-forwarded-for")?.split(",")?.[0]?.trim() || request.headers.get("cf-connecting-ip") || "unknown";
 
