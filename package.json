@@ -1,6 +1,5 @@
 {
-  "type": "module",
-  "engines": {
-    "node": "24.x"
-  }
+  "name": "iid-activation-tool",
+  "version": "1.0.0",
+  "private": true
 }
