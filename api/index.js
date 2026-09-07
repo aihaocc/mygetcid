@@ -281,7 +281,7 @@ button{padding:12px 16px;border-radius:10px;border:none;background:#0078d4;color
 </div>
 <div class="footer">
   本工具通过官方接口 visualsupport.microsoft.com 获取确认 ID<br>
-  仅用于合法授权设备激活 · 纯内存无缓冲模式
+  仅用于合法授权设备激活 · 纯内存模式
 </div>
 <div class="toast" id="toast"></div>
 <script>
