@@ -1,14 +1,5 @@
-// ==================== 配置常量 ====================
-const BATCH_SIZE = 200;
-const BATCH_FLUSH_SECONDS = 900;
-
-// ==================== 纯内存存储 ====================
-// ⚠️ Vercel Serverless/Edge 的内存是临时的，实例销毁后数据丢失
-let logBatch = [];
+// ==================== 纯内存日志（无缓冲，直接写入） ====================
 let memoryLogs = [];
-let lastFlushTime = Date.now();
-let flushing = false;
-let memoryBlacklist = [];
 
 // Token 内存缓存
 let memoryCidToken = null;
@@ -71,7 +62,7 @@ function getFormatTime(offset = 8) {
   return tz.toISOString().replace("T", " ").slice(0, 19);
 }
 
-// ==================== 纯内存 Token 获取 ====================
+// ==================== Token 获取 ====================
 async function getTokenData() {
   const now = Date.now();
   if (memoryCidToken && memoryCidTokenExpiry > now) return memoryCidToken;
@@ -122,22 +113,9 @@ async function sendActivationRequest(IID) {
   return { status: res.status, success: res.ok, data: await safeParse(res) };
 }
 
-// ==================== 纯内存日志管理 ====================
-async function flushBatch() {
-  if (flushing || logBatch.length === 0) return;
-  flushing = true;
-  try {
-    memoryLogs.push(...logBatch);
-    logBatch = [];
-    lastFlushTime = Date.now();
-  } finally {
-    flushing = false;
-  }
-}
-
-function needFlush() {
-  if (logBatch.length >= BATCH_SIZE) return true;
-  return (Date.now() - lastFlushTime) / 1000 > BATCH_FLUSH_SECONDS;
+// ==================== 日志操作（直接写入，无缓冲） ====================
+function addLog(entry) {
+  memoryLogs.push(entry);
 }
 
 function getAllLogs() {
@@ -153,7 +131,6 @@ function deleteLogById(targetId) {
 
 function clearAllLogs() {
   memoryLogs = [];
-  logBatch = [];
 }
 
 // ==================== IID 校验 ====================
@@ -180,7 +157,7 @@ function validateIID(iid) {
   return { valid: failedBlocks.length === 0, failedBlocks };
 }
 
-// ==================== 页面模板（保持不变） ====================
+// ==================== 页面模板 ====================
 function loginPage() {
   return `<!DOCTYPE html><meta charset="utf-8"><title>登录</title><style>body{display:grid;place-items:center;height:100vh;margin:0}.box{padding:24px;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.1);width:320px}input,button{width:100%;padding:10px;margin:8px 0;border-radius:6px;border:1px solid #ddd}button{background:#0066cc;color:white;border:none;cursor:pointer}</style><div class="box"><h3>日志后台登录</h3><form method="post"><input type="password" name="pwd" required placeholder="密码"><button>登录</button></form></div>`;
 }
@@ -198,8 +175,6 @@ function logPage(logs, page, totalPages, search, pageSize) {
       <button onclick="del('${item.id}')" style="background:red;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin:0 2px">删除</button>
       <button onclick="searchSameIID('${encodeURIComponent(item.IID || "")}')" style="background:#6c757d;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin:0 2px">同IID</button>
       <button onclick="showDetail('${encodeURIComponent(JSON.stringify(item.result))}')" style="background:#0066cc;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin:0 2px">详情</button>
-      <button onclick="blockIp('${item.ip}')" style="background:#d32f2f;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin:0 2px">拉黑IP</button>
-      <button onclick="unblockIp('${item.ip}')" style="background:#388e3c;color:white;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin:0 2px">解封IP</button>
     </td>
   </tr>`).join("");
   const pages = [];
@@ -228,7 +203,7 @@ th,td{padding:10px;border:1px solid #eee}
 .toast.show{opacity:1;top:30px}
 </style>
 <div class="card">
-  <h3>IID 激活日志 <span style="color:orange;font-size:14px">(⚠️ 纯内存模式·重启即丢失)</span></h3>
+  <h3>IID 激活日志 <span style="color:orange;font-size:14px">(⚠️ 纯内存·无缓冲·重启即丢失)</span></h3>
   <div class="bar">
     <input id="s" value="${search}" placeholder="搜索 IID">
     <button onclick="location.href='?search='+encodeURIComponent(document.getElementById('s').value)">搜索</button>
@@ -261,8 +236,6 @@ function showDetail(resultStr){ try{ const result = JSON.parse(decodeURIComponen
 function closeDetailModal(){ $("#detailModal").style.display = "none"; }
 async function copyDetailJson(){ const txt = $("#detailContent").textContent; if(!txt){toast("暂无内容");return;} try{await navigator.clipboard.writeText(txt);toast("已复制JSON");}catch(e){toast("复制失败");} }
 async function del(id){ if(!confirm("确认删除？")) return; await fetch("/logs/delete",{method:"POST",body:id}); location.reload(); }
-async function blockIp(ip){ if(!confirm('确认拉黑该IP：'+ip+'？')) return; await fetch("/logs/block-ip",{method:'POST',body:ip}); toast('已拉黑'); }
-async function unblockIp(ip){ if(!confirm('确认解封该IP：'+ip+'？')) return; await fetch("/logs/unblock-ip",{method:'POST',body:ip}); toast('已解封'); }
 </script>`;
 }
 
@@ -308,7 +281,7 @@ button{padding:12px 16px;border-radius:10px;border:none;background:#0078d4;color
 </div>
 <div class="footer">
   本工具通过官方接口 visualsupport.microsoft.com 获取确认 ID<br>
-  仅用于合法授权设备激活 · 纯内存模式无持久化
+  仅用于合法授权设备激活 · 纯内存无缓冲模式
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -346,7 +319,6 @@ export const config = {
 };
 
 export default async function handler(request) {
-  // Vercel 通过 process.env 读取环境变量
   const LOG_PASSWORD = process.env.LOG_PASSWORD;
   const PAGE_SIZE = parseInt(process.env.PAGE_SIZE) || 20;
   const TIMEZONE = parseInt(process.env.TIMEZONE_OFFSET) || 8;
@@ -357,26 +329,6 @@ export default async function handler(request) {
 
     || request.headers.get("cf-connecting-ip")
     || "unknown";
-
-  // ---------- 黑名单管理（纯内存） ----------
-  if (path === "/logs/block-ip") {
-    if (!isAuth(request, LOG_PASSWORD)) return new Response("403", { status: 403 });
-    const ip = await request.text();
-    if (!memoryBlacklist.includes(ip)) memoryBlacklist.push(ip);
-    return new Response("ok");
-  }
-
-  if (path === "/logs/unblock-ip") {
-    if (!isAuth(request, LOG_PASSWORD)) return new Response("403", { status: 403 });
-    const ip = await request.text();
-    memoryBlacklist = memoryBlacklist.filter(i => i !== ip);
-    return new Response("ok");
-  }
-
-  // ---------- IP 黑名单拦截 ----------
-  if (memoryBlacklist.includes(clientIP)) {
-    return new Response("Forbidden", { status: 403 });
-  }
 
   // ---------- 获取确认 ID API ----------
   if (path === "/api/get-cid" || path === "/api/get-cid/") {
@@ -398,9 +350,14 @@ export default async function handler(request) {
 
       const result = await sendActivationRequest(IID);
 
-      logBatch.push({ id: crypto.randomUUID(), time: getFormatTime(TIMEZONE), IID, ip: clientIP, result });
-      // Vercel Edge 没有 ctx.waitUntil，直接同步 flush
-      if (needFlush()) await flushBatch();
+      // 直接写入日志，无缓冲
+      addLog({
+        id: crypto.randomUUID(),
+        time: getFormatTime(TIMEZONE),
+        IID,
+        ip: clientIP,
+        result
+      });
 
       const response = Response.json(result);
       if (request.method === "GET") response.headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -446,7 +403,6 @@ export default async function handler(request) {
       return new Response(loginPage(), { headers: { "Content-Type": "text/html; charset=utf-8" } });
     }
 
-    await flushBatch();
     const search = url.searchParams.get("search") || "";
     const page = parseInt(url.searchParams.get("page")) || 1;
     const logs = getAllLogs();
@@ -471,8 +427,14 @@ export default async function handler(request) {
 
     const result = await sendActivationRequest(IID);
 
-    logBatch.push({ id: crypto.randomUUID(), time: getFormatTime(TIMEZONE), IID, ip: clientIP, result });
-    if (needFlush()) await flushBatch();
+    // 直接写入日志，无缓冲
+    addLog({
+      id: crypto.randomUUID(),
+      time: getFormatTime(TIMEZONE),
+      IID,
+      ip: clientIP,
+      result
+    });
 
     return Response.json(result);
   } catch (err) {
