@@ -1,18 +1,3 @@
-// ==================== 设置 CORS ====================
-export default async function handler(req, res) {
-  // 设置 CORS 头
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-  // 处理预检请求
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // 你的业务逻辑...
-  res.status(200).json({ message: 'ok' });
-}
 
 // ==================== 纯内存日志（无缓冲，直接写入） ====================
 let memoryLogs = [];
